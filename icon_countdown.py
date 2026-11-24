@@ -76,7 +76,7 @@ def api_key() -> str:
 
 def current_icon() -> str:
     key = api_key()
-    print(f"Key: Laenge {len(key)}, beginnt mit {key[:4]}...")
+    print(f"Key: Laenge {len(key)} Zeichen")
     req = urllib.request.Request(API + "?readMask=icon", headers={"x-api-key": key})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
