@@ -39,6 +39,12 @@ ICONS = {
 API = "https://apis.roblox.com/assets/v1/assets/" + PLACE_ID
 EARLY = 0  # Sekunden Toleranz (0 = Wechsel exakt zur vollen Stunde)
 LOOP_SECONDS = 5 * 3600 + 30 * 60  # Dauerlauf max. 5,5 h (GitHub-Limit pro Job: 6 h)
+LEAD = 60  # Sekunden frueher wechseln: Roblox braucht ~30-90 s, bis das neue Icon ueberall sichtbar ist
+
+
+def now() -> float:
+    """'Countdown-Uhr': LEAD Sekunden vor der echten Zeit."""
+    return time.time() + LEAD
 
 
 def stage_at(t: float) -> str:
@@ -109,7 +115,7 @@ def set_icon(asset_id: str) -> None:
 
 
 def apply(dry: bool) -> str:
-    stage = stage_at(time.time())
+    stage = stage_at(now())
     want = ICONS[stage]
     if dry:
         print(f"[dry-run] Stufe {stage} -> assets/{want}")
@@ -120,6 +126,9 @@ def apply(dry: bool) -> str:
     else:
         print(f"Stufe {stage}: setze Icon {have} -> {want}")
         set_icon(want)
+        time.sleep(10)  # PATCH ist asynchron: kurz warten, dann nachlesen
+        check = current_icon()
+        print("Kontrolle:", "OK, Icon ist gesetzt" if check == want else f"Roblox meldet noch {check}")
     return stage
 
 
@@ -132,7 +141,7 @@ def run_loop(dry: bool) -> None:
     """Bleibt bis zu LOOP_SECONDS wach und setzt jeden Wechsel selbst.
     Danach meldet es 'restart=true', damit der Workflow sich neu startet
     (GitHub-Cron ist bei neuen Repos unzuverlaessig)."""
-    start = time.time()
+    start = now()
     while True:
         try:
             stage = apply(dry)
@@ -144,12 +153,12 @@ def run_loop(dry: bool) -> None:
             print("FERTIG")
             write_output("finished=true")
             return
-        nxt = next_change(time.time())
+        nxt = next_change(now())
         if nxt - start > LOOP_SECONDS:
             print("Laufzeit fast um - starte neuen Lauf.")
             write_output("restart=true")
             return
-        wait = max(1, nxt - time.time() + 2)
+        wait = max(1, nxt - now() + 2)
         print(f"Naechster Wechsel in {int(wait)} s ({datetime.fromtimestamp(nxt, timezone.utc):%H:%M:%S} UTC).", flush=True)
         time.sleep(wait)
 
@@ -172,8 +181,8 @@ def main() -> None:
     stage = apply(dry)
     # Steht ein Wechsel in den naechsten ~5,5 Minuten an? Dann bis dahin warten
     # und direkt umstellen (GitHub-Cron ist sonst ungenau).
-    nxt = next_change(time.time())
-    wait = nxt - time.time()
+    nxt = next_change(now())
+    wait = nxt - now()
     if 0 < wait <= 330 and stage != "ORIGINAL":
         print(f"Naechster Wechsel in {int(wait)} s - warte.")
         time.sleep(wait + 2)
