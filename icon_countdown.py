@@ -38,7 +38,8 @@ ICONS = {
 
 API = "https://apis.roblox.com/assets/v1/assets/" + PLACE_ID
 EARLY = 0  # Sekunden Toleranz (0 = Wechsel exakt zur vollen Stunde)
-LOOP_SECONDS = 5 * 3600 + 30 * 60  # Dauerlauf max. 5,5 h (GitHub-Limit pro Job: 6 h)
+# Dauerlauf max. 5,5 h (GitHub-Limit pro Job: 6 h); per LOOP_MINUTES kuerzer zum Testen
+LOOP_SECONDS = int(os.environ.get("LOOP_MINUTES") or 330) * 60
 LEAD = 60  # Sekunden frueher wechseln: Roblox braucht ~30-90 s, bis das neue Icon ueberall sichtbar ist
 
 

@@ -9,6 +9,14 @@ on:
         description: "Nur anzeigen, nichts aendern"
         type: boolean
         default: false
+      loop_minutes:
+        description: "Laufzeit pro Dauerlauf in Minuten (nur zum Testen aendern)"
+        type: string
+        default: "330"
+      restarts_left:
+        description: "Wie oft sich der Dauerlauf noch neu starten darf (nur zum Testen aendern)"
+        type: string
+        default: "999"
 
 permissions:
   actions: write   # Neustart des Dauerlaufs + Selbst-Abschalten nach dem Event
@@ -24,12 +32,18 @@ jobs:
         id: run
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          LOOP_MINUTES: ${{ inputs.loop_minutes }}
         run: python3 -u icon_countdown.py ${{ github.event_name == 'workflow_dispatch' && '--loop' || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
       - name: Dauerlauf neu starten
-        if: steps.run.outputs.restart == 'true'
+        if: steps.run.outputs.restart == 'true' && inputs.restarts_left != '0'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh workflow run icon-countdown.yml --repo "$GITHUB_REPOSITORY" --ref main
+          LEFT: ${{ inputs.restarts_left || '999' }}
+        run: >
+          gh workflow run icon-countdown.yml --repo "$GITHUB_REPOSITORY" --ref main
+          -f dry_run=${{ inputs.dry_run && 'true' || 'false' }}
+          -f loop_minutes=${{ inputs.loop_minutes || '330' }}
+          -f restarts_left=$((LEFT - 1))
       - name: Nach dem Event abschalten
         if: steps.run.outputs.finished == 'true'
         env:
