@@ -38,6 +38,7 @@ ICONS = {
 
 API = "https://apis.roblox.com/assets/v1/assets/" + PLACE_ID
 EARLY = 0  # Sekunden Toleranz (0 = Wechsel exakt zur vollen Stunde)
+LOOP_SECONDS = 5 * 3600 + 30 * 60  # Dauerlauf max. 5,5 h (GitHub-Limit pro Job: 6 h)
 
 
 def stage_at(t: float) -> str:
@@ -122,6 +123,37 @@ def apply(dry: bool) -> str:
     return stage
 
 
+def write_output(line: str) -> None:
+    with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as fh:
+        fh.write(line + "\n")
+
+
+def run_loop(dry: bool) -> None:
+    """Bleibt bis zu LOOP_SECONDS wach und setzt jeden Wechsel selbst.
+    Danach meldet es 'restart=true', damit der Workflow sich neu startet
+    (GitHub-Cron ist bei neuen Repos unzuverlaessig)."""
+    start = time.time()
+    while True:
+        try:
+            stage = apply(dry)
+        except (SystemExit, Exception) as e:  # einzelner API-/Netzfehler: kurz warten, nochmal
+            print("Fehler:", e, "- neuer Versuch in 60 s", flush=True)
+            time.sleep(60)
+            continue
+        if stage == "ORIGINAL":  # Event + NOW vorbei, Original-Icon ist wieder drin
+            print("FERTIG")
+            write_output("finished=true")
+            return
+        nxt = next_change(time.time())
+        if nxt - start > LOOP_SECONDS:
+            print("Laufzeit fast um - starte neuen Lauf.")
+            write_output("restart=true")
+            return
+        wait = max(1, nxt - time.time() + 2)
+        print(f"Naechster Wechsel in {int(wait)} s ({datetime.fromtimestamp(nxt, timezone.utc):%H:%M:%S} UTC).", flush=True)
+        time.sleep(wait)
+
+
 def main() -> None:
     dry = "--dry-run" in sys.argv
     if "--table" in sys.argv:  # Kontrolle: alle Wechselzeiten ausgeben
@@ -131,6 +163,10 @@ def main() -> None:
             n = next_change(t)
             print(datetime.fromtimestamp(n, timezone.utc).strftime("%d.%m. %H:%M:%S UTC"), "->", stage_at(n))
             t = n
+        return
+
+    if "--loop" in sys.argv:
+        run_loop(dry)
         return
 
     stage = apply(dry)
