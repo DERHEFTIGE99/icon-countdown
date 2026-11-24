@@ -75,9 +75,14 @@ def api_key() -> str:
 
 
 def current_icon() -> str:
-    req = urllib.request.Request(API + "?readMask=icon", headers={"x-api-key": api_key()})
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.load(resp)
+    key = api_key()
+    print(f"Key: Laenge {len(key)}, beginnt mit {key[:4]}...")
+    req = urllib.request.Request(API + "?readMask=icon", headers={"x-api-key": key})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.load(resp)
+    except urllib.error.HTTPError as e:
+        sys.exit(f"GET fehlgeschlagen: {e.code} {e.read().decode()[:500]}")
     return data.get("icon", "").replace("assets/", "")
 
 
