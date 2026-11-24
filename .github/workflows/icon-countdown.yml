@@ -1,0 +1,36 @@
+name: Icon Countdown
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # alle 5 Minuten (GitHub kann ein paar Minuten spaeter starten)
+  workflow_dispatch:          # manuell starten zum Testen
+    inputs:
+      dry_run:
+        description: "Nur anzeigen, nichts aendern"
+        type: boolean
+        default: false
+
+concurrency:
+  group: icon-countdown
+  cancel-in-progress: false
+
+permissions:
+  actions: write   # damit sich der Workflow nach dem Event selbst abschalten kann
+  contents: read
+
+jobs:
+  update-icon:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Icon setzen
+        id: run
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+        run: python3 icon_countdown.py ${{ inputs.dry_run && '--dry-run' || '' }}
+      - name: Nach dem Event abschalten
+        if: steps.run.outputs.finished == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow disable "Icon Countdown" --repo "$GITHUB_REPOSITORY"
