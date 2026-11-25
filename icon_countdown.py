@@ -98,7 +98,22 @@ def current_icon() -> str:
     return data.get("icon", "").replace("assets/", "")
 
 
+def operation_result(op_path: str) -> str:
+    """Liest das Ergebnis der (asynchronen) PATCH-Operation - zeigt Fehler, die PATCH 200 verschweigt."""
+    req = urllib.request.Request("https://apis.roblox.com/assets/v1/" + op_path, headers={"x-api-key": api_key()})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.read().decode()[:500]
+    except urllib.error.HTTPError as e:
+        return f"{e.code} {e.read().decode()[:300]}"
+
+
+LAST_OP = ""
+LAST_OK = True
+
+
 def set_icon(asset_id: str) -> None:
+    global LAST_OP
     # Update Asset verlangt multipart/form-data mit dem Feld "request" (ohne fileContent!)
     boundary = uuid.uuid4().hex
     payload = json.dumps({"assetId": PLACE_ID, "icon": f"assets/{asset_id}"})
@@ -114,12 +129,19 @@ def set_icon(asset_id: str) -> None:
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
-            print("PATCH", resp.status, resp.read().decode()[:300])
+            text = resp.read().decode()[:300]
+            print("PATCH", resp.status, text)
+            try:
+                LAST_OP = json.loads(text).get("path", "")
+            except ValueError:
+                LAST_OP = ""
     except urllib.error.HTTPError as e:
         sys.exit(f"PATCH fehlgeschlagen: {e.code} {e.read().decode()[:500]}")
 
 
 def apply(dry: bool) -> str:
+    global LAST_OK
+    LAST_OK = True
     stage = stage_at(now())
     want = ICONS[stage]
     if dry:
@@ -133,7 +155,13 @@ def apply(dry: bool) -> str:
         set_icon(want)
         time.sleep(10)  # PATCH ist asynchron: kurz warten, dann nachlesen
         check = current_icon()
-        print("Kontrolle:", "OK, Icon ist gesetzt" if check == want else f"Roblox meldet noch {check}")
+        if check != want:  # beim Boss-Event: PATCH 200, aber Icon blieb -> 2. Versuch nach 20 s
+            time.sleep(20)
+            check = current_icon()
+        LAST_OK = check == want
+        print("Kontrolle:", "OK, Icon ist gesetzt" if LAST_OK else f"Roblox meldet noch {check}")
+        if not LAST_OK and LAST_OP:
+            print("Operation:", operation_result(LAST_OP))
     return stage
 
 
@@ -147,6 +175,7 @@ def run_loop(dry: bool) -> None:
     Danach meldet es 'restart=true', damit der Workflow sich neu startet
     (GitHub-Cron ist bei neuen Repos unzuverlaessig)."""
     start = now()
+    fails = 0
     while True:
         try:
             stage = apply(dry)
@@ -154,8 +183,14 @@ def run_loop(dry: bool) -> None:
             print("Fehler:", e, "- neuer Versuch in 60 s", flush=True)
             time.sleep(60)
             continue
+        if stage == "ORIGINAL" and not LAST_OK and fails < 15:
+            # Original-Icon kam nicht an (Boss-Event 25.11.!) -> NICHT abschalten, nochmal versuchen
+            fails += 1
+            print(f"Original-Icon nicht bestaetigt - Versuch {fails}/15, neuer Versuch in 120 s", flush=True)
+            time.sleep(120)
+            continue
         if stage == "ORIGINAL":  # Event + NOW vorbei, Original-Icon ist wieder drin
-            print("FERTIG")
+            print("FERTIG" if LAST_OK else "FERTIG (Original-Icon NICHT bestaetigt - bitte von Hand pruefen!)")
             write_output("finished=true")
             return
         nxt = next_change(now())
@@ -193,7 +228,7 @@ def main() -> None:
         time.sleep(wait + 2)
         apply(dry)
 
-    if stage == "ORIGINAL" and time.time() > EVENT_START.timestamp() + NOW_DURATION + 900:
+    if stage == "ORIGINAL" and LAST_OK and time.time() > EVENT_START.timestamp() + NOW_DURATION + 900:
         print("FERTIG")  # Signal fuer den Workflow, sich selbst abzuschalten
         with open(os.environ.get("GITHUB_OUTPUT", os.devnull), "a") as fh:
             fh.write("finished=true\n")
