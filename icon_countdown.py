@@ -203,8 +203,34 @@ def run_loop(dry: bool) -> None:
         time.sleep(wait)
 
 
+def test_icons(stages) -> None:
+    """Setzt jede Stufe einmal echt (prueft Open Use / Freigabe) und geht danach aufs Original zurueck."""
+    bad = []
+    for st in stages:
+        want = ICONS[st]
+        set_icon(want)
+        ok = False
+        for _ in range(8):
+            time.sleep(4)
+            res = operation_result(LAST_OP) if LAST_OP else ""
+            if '"done":true' in res.replace(" ", ""):
+                ok = '"error"' not in res
+                break
+        print(f"TEST {st} ({want}):", "OK" if ok else "FEHLER " + res[:300], flush=True)
+        if not ok:
+            bad.append(st)
+    set_icon(ORIGINAL_ICON)
+    time.sleep(12)
+    back = current_icon() == ORIGINAL_ICON
+    print("Zurueck aufs Original:", "OK" if back else "NEIN - bitte pruefen")
+    print("ERGEBNIS:", "ALLES OK" if not bad and back else f"FEHLER bei {bad}")
+
+
 def main() -> None:
     dry = "--dry-run" in sys.argv
+    if "--test-icons" in sys.argv:
+        test_icons(["24H", "23H", "22H", "21H", "20H", "19H"])
+        return
     if "--table" in sys.argv:  # Kontrolle: alle Wechselzeiten ausgeben
         t = EVENT_START.timestamp() - (MAX_HOURS + 1) * 3600
         end = EVENT_START.timestamp() + NOW_DURATION + 60

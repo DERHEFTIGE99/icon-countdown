@@ -45,7 +45,7 @@ jobs:
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           LOOP_MINUTES: ${{ inputs.loop_minutes }}
-        run: python3 -u icon_countdown.py ${{ github.event_name == 'workflow_dispatch' && '--loop' || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: python3 -u icon_countdown.py ${{ github.event_name == 'workflow_dispatch' && '--loop' || '' }} ${{ inputs.dry_run && '--dry-run' || '' }} ${{ contains(github.event.head_commit.message, '[icon-test]') && '--test-icons' || '' }}
       - name: Dauerlauf neu starten
         if: steps.run.outputs.restart == 'true' && inputs.restarts_left != '0'
         env:
