@@ -1,6 +1,8 @@
 name: Icon Countdown
 
 on:
+  push:                       # jeder Push = ein Einzel-Lauf (Notfall ohne Browser)
+    branches: [main]
   schedule:
     - cron: "*/5 * * * *"   # Reserve: Einzel-Lauf alle 5 Minuten (GitHub startet das oft verspaetet)
   workflow_dispatch:          # manuell starten = Dauerlauf (setzt jeden Wechsel selbst, startet sich neu)
