@@ -1,13 +1,13 @@
-"""Boss-Event-Countdown fuer das Spiel-Icon (Farm Aura for Brainrot).
+"""Event-Countdown fuer das Spiel-Icon (Farm Aura for Brainrot).
 
-Laeuft alle 5 Minuten per GitHub Actions. Berechnet aus der Uhrzeit, welches
-Countdown-Bild gerade dran ist, und setzt es per Open Cloud als Place-Icon,
-falls es nicht schon gesetzt ist. Kurz vor einem Wechsel wartet das Script
-bis zur exakten Minute, damit der Wechsel puenktlich passiert.
+Aktuelles Event: DUELS + ADMIN ABUSE, Start Sa 28.11.2026 15:00 deutsche Zeit (14:00 UTC).
+Berechnet aus der Uhrzeit, welches Countdown-Bild gerade dran ist, und setzt es per
+Open Cloud als Place-Icon, falls es nicht schon gesetzt ist.
 
-Ablauf (deutsche Zeit, Event 25.11. 16:00):
-  volle Stunden: 18 HOURS ... 1 HOUR, dann 15:30 30 MINUTES, 15:45 15 MINUTES,
-  15:55 5 MINUTES, 16:00-18:00 NOW, danach wieder das normale Icon.
+Ablauf (deutsche Zeit):
+  vor Fr 27.11. 15:00: normales Icon
+  volle Stunden: 24 HOURS ... 1 HOUR, dann Sa 14:30 30 MINUTES, 14:45 15 MINUTES,
+  14:55 5 MINUTES, 15:00-17:00 NOW, danach wieder das normale Icon.
 """
 import json
 import math
@@ -20,12 +20,14 @@ import uuid
 from datetime import datetime, timezone
 
 PLACE_ID = "134522606448687"
-EVENT_START = datetime(2026, 11, 25, 15, 0, 0, tzinfo=timezone.utc)  # 16:00 deutsche Zeit
+EVENT_START = datetime(2026, 11, 28, 14, 0, 0, tzinfo=timezone.utc)  # Sa 15:00 deutsche Zeit (Duels)
 NOW_DURATION = 2 * 3600          # "NOW" bleibt 2 Stunden
-MAX_HOURS = 18
-ORIGINAL_ICON = "112498813556776"  # normales Icon, kommt nach dem Event zurueck
+MAX_HOURS = 24                   # Countdown beginnt 24 h vorher
+ORIGINAL_ICON = "130514801796403"  # normales Icon (base_icon.png, 25.11. per API als Gruppen-Bild hochgeladen)
 
 ICONS = {
+    "24H": "137463528249408", "23H": "102313961678755", "22H": "81158216045232",
+    "21H": "113056903474600", "20H": "84148144448728", "19H": "101128542050647",
     "18H": "110820621228953", "17H": "93567377990531", "16H": "82697066302956",
     "15H": "126217185583754", "14H": "134251440713219", "13H": "127417804972006",
     "12H": "106127880219949", "11H": "122073795016085", "10H": "117204464611888",
@@ -33,7 +35,7 @@ ICONS = {
     "6H": "119411434383002", "5H": "84284895865173", "4H": "99619030880251",
     "3H": "125000001488376", "2H": "126306477207131", "1H": "133863362750795",
     "30M": "130401701028972", "15M": "124429797494652", "5M": "85899050601293",
-    "NOW": "131115297497663", "ORIGINAL": ORIGINAL_ICON,
+    "NOW": "131115297497663", "ORIGINAL": ORIGINAL_ICON, "BEFORE": ORIGINAL_ICON,
 }
 
 API = "https://apis.roblox.com/assets/v1/assets/" + PLACE_ID
@@ -60,6 +62,8 @@ def stage_at(t: float) -> str:
         return "15M"
     if r <= 30 * 60:
         return "30M"
+    if r > MAX_HOURS * 3600:
+        return "BEFORE"  # Countdown hat noch nicht begonnen: normales Icon
     hours = math.ceil((r - EARLY) / 3600)
     return f"{max(1, min(MAX_HOURS, hours))}H"
 

@@ -1,7 +1,11 @@
 name: Icon Countdown
 
-# Event 25.11.2026 vorbei: nur noch manueller Start. Fuer ein neues Event push/schedule wieder einbauen.
+# Duels-Event Sa 28.11.2026 15:00 MEZ. Countdown ab Fr 27.11. 15:00 MEZ.
 on:
+  push:                       # Push = Einzel-Lauf (setzt nur die gerade passende Stufe, z.B. Test des Original-Icons)
+    branches: [main]
+  schedule:                   # Fr 27.11. 13:00-14:50 MEZ: startet den Dauerlauf (erster Treffer gewinnt, Rest bricht ab)
+    - cron: "0,10,20,30,40,50 12,13 27 11 *"
   workflow_dispatch:          # manuell starten = Dauerlauf (setzt jeden Wechsel selbst, startet sich neu)
     inputs:
       dry_run:
@@ -27,12 +31,22 @@ jobs:
     timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
+      - name: Laeuft schon ein Dauerlauf?
+        id: busy
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          n=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow icon-countdown.yml --status in_progress --json databaseId -q 'length')
+          echo "laufende Runs (inkl. diesem): $n"
+          if [ "$n" -gt 1 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "Dauerlauf laeuft schon - nichts zu tun."; fi
       - name: Icon setzen
         id: run
+        if: steps.busy.outputs.skip != 'true'
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           LOOP_MINUTES: ${{ inputs.loop_minutes }}
-        run: python3 -u icon_countdown.py ${{ github.event_name == 'workflow_dispatch' && '--loop' || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: python3 -u icon_countdown.py ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && '--loop' || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
       - name: Dauerlauf neu starten
         if: steps.run.outputs.restart == 'true' && inputs.restarts_left != '0'
         env:
