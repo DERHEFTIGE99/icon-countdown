@@ -1,10 +1,7 @@
 name: Icon Countdown
 
+# Event 25.11.2026 vorbei: nur noch manueller Start. Fuer ein neues Event push/schedule wieder einbauen.
 on:
-  push:                       # jeder Push = ein Einzel-Lauf (Notfall ohne Browser)
-    branches: [main]
-  schedule:
-    - cron: "*/5 * * * *"   # Reserve: Einzel-Lauf alle 5 Minuten (GitHub startet das oft verspaetet)
   workflow_dispatch:          # manuell starten = Dauerlauf (setzt jeden Wechsel selbst, startet sich neu)
     inputs:
       dry_run:
