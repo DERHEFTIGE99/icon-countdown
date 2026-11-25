@@ -23,11 +23,11 @@ PLACE_ID = "134522606448687"
 EVENT_START = datetime(2026, 11, 28, 14, 0, 0, tzinfo=timezone.utc)  # Sa 15:00 deutsche Zeit (Duels)
 NOW_DURATION = 2 * 3600          # "NOW" bleibt 2 Stunden
 MAX_HOURS = 24                   # Countdown beginnt 24 h vorher
-ORIGINAL_ICON = "130514801796403"  # normales Icon (base_icon.png, 25.11. per API als Gruppen-Bild hochgeladen)
+ORIGINAL_ICON = "72488952409095"  # normales Icon (base_icon.png, per API als Gruppen-Bild, OpenUse - Pflicht fuer Icons!)
 
 ICONS = {
-    "24H": "137463528249408", "23H": "102313961678755", "22H": "81158216045232",
-    "21H": "113056903474600", "20H": "84148144448728", "19H": "101128542050647",
+    "24H": "124573833073167", "23H": "118753196554480", "22H": "92080134489402",
+    "21H": "125248322692206", "20H": "77551590014122", "19H": "116824064681233",
     "18H": "110820621228953", "17H": "93567377990531", "16H": "82697066302956",
     "15H": "126217185583754", "14H": "134251440713219", "13H": "127417804972006",
     "12H": "106127880219949", "11H": "122073795016085", "10H": "117204464611888",
