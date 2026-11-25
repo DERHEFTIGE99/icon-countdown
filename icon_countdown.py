@@ -219,11 +219,11 @@ def main() -> None:
         return
 
     stage = apply(dry)
-    # Steht ein Wechsel in den naechsten ~5,5 Minuten an? Dann bis dahin warten
+    # Steht ein Wechsel in den naechsten ~10 Minuten an? Dann bis dahin warten
     # und direkt umstellen (GitHub-Cron ist sonst ungenau).
     nxt = next_change(now())
     wait = nxt - now()
-    if 0 < wait <= 330 and stage != "ORIGINAL":
+    if 0 < wait <= 600 and stage != "ORIGINAL":
         print(f"Naechster Wechsel in {int(wait)} s - warte.")
         time.sleep(wait + 2)
         apply(dry)

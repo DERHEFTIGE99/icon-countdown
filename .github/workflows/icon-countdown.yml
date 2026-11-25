@@ -1,11 +1,20 @@
 name: Icon Countdown
 
-# Duels-Event Sa 28.11.2026 15:00 MEZ. Countdown ab Fr 27.11. 15:00 MEZ.
+# Duels-Event Sa 28.11.2026 15:00 MEZ. Countdown ab Fr 27.11. 15:00 MEZ (Sparmodus, siehe schedule).
 on:
   push:                       # Push = Einzel-Lauf (setzt nur die gerade passende Stufe, z.B. Test des Original-Icons)
     branches: [main]
-  schedule:                   # Fr 27.11. 13:00-14:50 MEZ: startet den Dauerlauf (erster Treffer gewinnt, Rest bricht ab)
-    - cron: "0,10,20,30,40,50 12,13 27 11 *"
+  schedule:
+    # SPARMODUS (privates Repo, wenig Actions-Minuten): kein Dauerlauf, sondern Kurzlaeufe.
+    # Alle Zeiten UTC (MEZ = UTC+1). Lauf um :52 wartet bis zum Wechsel (:59), Lauf um :05 holt Verpasstes nach.
+    - cron: "52 13-23 27 11 *"          # Fr: 24 HOURS ... 15 HOURS
+    - cron: "5 14-23 27 11 *"
+    - cron: "52 0-12 28 11 *"           # Sa: 14 HOURS ... 1 HOUR
+    - cron: "5 0-13 28 11 *"
+    - cron: "22,37,47,56 13 28 11 *"    # Sa: 30 / 15 / 5 MINUTES, NOW (je ~7 bzw. 3 Min. vor dem Wechsel)
+    - cron: "5,30 14 28 11 *"           # Sa: NOW nachpruefen
+    - cron: "52 15 28 11 *"             # Sa 16:59 MEZ: zurueck aufs Original-Icon
+    - cron: "10,25,40 16 28 11 *"       # Original-Icon nachpruefen, danach schaltet sich der Workflow ab
   workflow_dispatch:          # manuell starten = Dauerlauf (setzt jeden Wechsel selbst, startet sich neu)
     inputs:
       dry_run:
@@ -28,25 +37,15 @@ permissions:
 jobs:
   update-icon:
     runs-on: ubuntu-latest
-    timeout-minutes: 350
+    timeout-minutes: 350   # Kurzlaeufe brauchen max. ~12 Min.
     steps:
       - uses: actions/checkout@v4
-      - name: Laeuft schon ein Dauerlauf?
-        id: busy
-        if: github.event_name == 'schedule'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          n=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow icon-countdown.yml --status in_progress --json databaseId -q 'length')
-          echo "laufende Runs (inkl. diesem): $n"
-          if [ "$n" -gt 1 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "Dauerlauf laeuft schon - nichts zu tun."; fi
       - name: Icon setzen
         id: run
-        if: steps.busy.outputs.skip != 'true'
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
           LOOP_MINUTES: ${{ inputs.loop_minutes }}
-        run: python3 -u icon_countdown.py ${{ (github.event_name == 'workflow_dispatch' || github.event_name == 'schedule') && '--loop' || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: python3 -u icon_countdown.py ${{ github.event_name == 'workflow_dispatch' && '--loop' || '' }} ${{ inputs.dry_run && '--dry-run' || '' }}
       - name: Dauerlauf neu starten
         if: steps.run.outputs.restart == 'true' && inputs.restarts_left != '0'
         env:
