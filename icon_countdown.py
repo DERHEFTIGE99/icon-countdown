@@ -194,6 +194,10 @@ def run_loop(dry: bool) -> None:
             write_output("finished=true")
             return
         nxt = next_change(now())
+        if not LAST_OK and not dry:
+            # Stufe kam nicht an -> nicht bis zum naechsten Wechsel (bis zu 1 h) warten, in 60 s nochmal
+            print("Icon nicht bestaetigt - neuer Versuch in 60 s", flush=True)
+            nxt = min(nxt, now() + 60)
         if nxt - start > LOOP_SECONDS:
             print("Laufzeit fast um - starte neuen Lauf.")
             write_output("restart=true")
